@@ -40,30 +40,30 @@ structure = [
             "predict_pipeline.py"
         ]}
     ]},
-    # {"configs": [
-    #     "config.yaml",
-    #     "model_params.yaml",
-    #     "pipeline_params.yaml"
-    # ]},
-    # {"tests": [
-    #     "test_data.py",
-    #     "test_model.py",
-    #     "test_pipeline.py"
-    # ]},
-    # {"scripts": [
-    #     "run_train.py",
-    #     "run_eval.py",
-    #     "run_infer.py"
-    # ]},
-    # {"artifacts": [
-    #     "models",
-    #     "metrics",
-    #     "plots"
-    # ]},
-    # {"docker": [
-    #     "Dockerfile",
-    #     "docker-compose.yaml"
-    # ]}
+    {"configs": [
+        "config.yaml",
+        "model_params.yaml",
+        "pipeline_params.yaml"
+    ]},
+    {"tests": [
+        "test_data.py",
+        "test_model.py",
+        "test_pipeline.py"
+    ]},
+    {"scripts": [
+        "run_train.py",
+        "run_eval.py",
+        "run_infer.py"
+    ]},
+    {"artifacts": [
+        "models",
+        "metrics",
+        "plots"
+    ]},
+    {"docker": [
+        "Dockerfile",
+        "docker-compose.yaml"
+    ]}
 ]
 
 
