@@ -12,34 +12,34 @@ structure = [
         "02_feature_engineering.ipynb",
         "03_model_selection.ipynb"
     ]},
-    # {"src": [
-    #     "__init__.py",
-    #     {"data": [
-    #         "__init__.py",
-    #         "load_data.py",
-    #         "clean_data.py",
-    #         "feature_engineering.py"
-    #     ]},
-    #     {"models": [
-    #         "__init__.py",
-    #         "build_model.py",
-    #         "train_model.py",
-    #         "evaluate_model.py",
-    #         "save_load.py"
-    #     ]},
-    #     {"utils": [
-    #         "__init__.py",
-    #         "config_parser.py",
-    #         "logger.py",
-    #         "metrics.py"
-    #     ]},
-    #     {"pipeline": [
-    #         "__init__.py",
-    #         "train_pipeline.py",
-    #         "evaluate_pipeline.py",
-    #         "predict_pipeline.py"
-    #     ]}
-    # ]},
+    {"src": [
+        "__init__.py",
+        {"data": [
+            "__init__.py",
+            "load_data.py",
+            "clean_data.py",
+            "feature_engineering.py"
+        ]},
+        {"models": [
+            "__init__.py",
+            "build_model.py",
+            "train_model.py",
+            "evaluate_model.py",
+            "save_load.py"
+        ]},
+        {"utils": [
+            "__init__.py",
+            "config_parser.py",
+            "logger.py",
+            "metrics.py"
+        ]},
+        {"pipeline": [
+            "__init__.py",
+            "train_pipeline.py",
+            "evaluate_pipeline.py",
+            "predict_pipeline.py"
+        ]}
+    ]},
     # {"configs": [
     #     "config.yaml",
     #     "model_params.yaml",
