@@ -1,0 +1,15 @@
+project:
+  name: "urban_scene_object_detector"
+  version: "1.0"
+
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+
+LoadDataConfig:
+  root_dir: 'data\raw'
+  labels_url: 'https://drive.google.com/file/d/1tj5v91LEeEeJmZde8e55Sk6BF4ekhfuU/view?usp=drive_link'
+  images_url: "https://drive.google.com/file/d/1iUZGnIKElFTVlY6mJutRVMaa--49obVU/view?usp=sharing"
+  image_zip_name: "urban_scene_images.zip"
+  label_filename: "urban_scene_labels.json"
+  unzip_dirname: "urban_scene_images"
