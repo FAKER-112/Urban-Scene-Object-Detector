@@ -1,6 +1,8 @@
 import os
 import zipfile
 import sys
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
 from pathlib import Path
 from src.utils.config_parser import load_config
 from src.utils.utils import download_from_gdrive
