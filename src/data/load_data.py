@@ -10,7 +10,10 @@ from src.utils.exception import CustomException
 from src.utils.logger import logger
 
 class LoadDataService:
+
+    '''Service to load data by downloading and extracting images and labels.'''
     def __init__(self, config_yaml_path: Path):
+        
         try:
             self.config= load_config(config_yaml_path)
             self.logger= logger
@@ -31,6 +34,8 @@ class LoadDataService:
         
 
     def run(self):
+        '''Executes the data loading process including downloading and extracting images and labels.'''
+        
         try:
             self.logger.info('starting data loading process ...')
             image_zip = self._download_images()
@@ -42,6 +47,7 @@ class LoadDataService:
         
 
     def _download_images(self):
+        '''Downloads image zip file from Google Drive.'''
         try:
             os.makedirs(self.raw_dir, exist_ok=True)
             image_zip_path= self.raw_dir/ self.image_zip_name
@@ -55,6 +61,7 @@ class LoadDataService:
         
 
     def _extract_images(self, zip_path: Path):
+        '''Extracts images from the downloaded zip file.'''
 
         try:
             target_dir= self.raw_dir/ self.unzip_dir
@@ -67,6 +74,7 @@ class LoadDataService:
         
 
     def _download_labels(self):
+        '''Downloads label JSON file from Google Drive.'''
         try:
             os.makedirs(self.raw_dir, exist_ok=True)
             label_file_path= self.raw_dir/ self.label_filename

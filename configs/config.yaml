@@ -13,3 +13,9 @@ LoadDataConfig:
   image_zip_name: "urban_scene_images.zip"
   label_filename: "urban_scene_labels.json"
   unzip_dirname: "urban_scene_images"
+
+CleanDataConfig:
+  src_ann_dir : 'data\raw\urban_scene_images\annotations.json'
+  dest_ann_dir : 'data\raw\urban_scene_images\annotation_filtered.json'
+  min_ann_dir : 'data\raw\urban_scene_images\annotation_minimal.json'
+  target_classes: ["person", "bicycle", "car", "motorcycle", "bus", "truck"]
