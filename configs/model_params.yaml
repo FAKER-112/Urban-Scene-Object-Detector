@@ -1,0 +1,9 @@
+TrainModelConfig:
+  MODEL_PATH : "artifacts/models/runs/detect/train/weights/last.pt"
+  DATA_YAML : "data/processed/data.yaml"
+  PROJECT_DIR : "artifacts/models"
+  RUN_NAME : "train"
+  EPOCHS: 101
+  IMGSZ: 640
+  DEVICE: 'cpu'
+  RESUME: True

@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/User/Documents/Project/project_005/mlruns/730943114029380130/fe6d704f7b264c64aa5ca47f263e385e/artifacts
+end_time: 1761155674900
+entry_point_name: ''
+experiment_id: '730943114029380130'
+lifecycle_stage: active
+run_id: fe6d704f7b264c64aa5ca47f263e385e
+run_name: YOLOv8_20251022_185418
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1761155660714
+status: 4
+tags: []
+user_id: User
