@@ -23,7 +23,7 @@ class CleanDataService:
             self.src_path = Path(cfg.get("src_ann_dir", "data/raw/annotations.json"))
             self.dest_path = Path(cfg.get("dest_ann_dir", "data/processed/annotation_filtered..json"))
             self.min_path = Path(cfg.get("min_ann_dir", "data/raw/urban_scene_images/annotation_minimal.json"))
-            self.target_classes :str =  cfg.get("target_classes", [])
+            self.target_classes =  cfg.get("target_classes", [])
 
         except Exception as e:
             raise CustomException(e, sys)

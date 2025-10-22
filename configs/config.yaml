@@ -19,3 +19,10 @@ CleanDataConfig:
   dest_ann_dir : 'data\raw\urban_scene_images\annotation_filtered.json'
   min_ann_dir : 'data\raw\urban_scene_images\annotation_minimal.json'
   target_classes: ["person", "bicycle", "car", "motorcycle", "bus", "truck"]
+
+
+FeatureEngConfig:
+  image_dir: 'data\raw\urban_scene_images\images'
+  ann_dir: 'data\raw\urban_scene_images\annotation_minimal.json'
+  base_dir: "data/processed"
+
