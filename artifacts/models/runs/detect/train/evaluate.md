@@ -24,21 +24,21 @@
 ## 🖼️ Visual Results
 **Confusion Matrix:**
 
-![Confusion Matrix](artifacts/models/runs/detect/train\confusion_matrix.png)
+![Confusion Matrix](\confusion_matrix.png)
 
 **Validation Sample Predictions:**
 
-![val_batch0_labels.jpg](artifacts/models/runs/detect/train\val_batch0_labels.jpg)
+![val_batch0_labels.jpg](\val_batch0_labels.jpg)
 
-![val_batch0_pred.jpg](artifacts/models/runs/detect/train\val_batch0_pred.jpg)
+![val_batch0_pred.jpg](\val_batch0_pred.jpg)
 
-![val_batch1_labels.jpg](artifacts/models/runs/detect/train\val_batch1_labels.jpg)
+![val_batch1_labels.jpg](\val_batch1_labels.jpg)
 
-![val_batch1_pred.jpg](artifacts/models/runs/detect/train\val_batch1_pred.jpg)
+![val_batch1_pred.jpg](\val_batch1_pred.jpg)
 
-![val_batch2_labels.jpg](artifacts/models/runs/detect/train\val_batch2_labels.jpg)
+![val_batch2_labels.jpg](\val_batch2_labels.jpg)
 
-![val_batch2_pred.jpg](artifacts/models/runs/detect/train\val_batch2_pred.jpg)
+![val_batch2_pred.jpg](\val_batch2_pred.jpg)
 
 
 ## 🔍 Insights
