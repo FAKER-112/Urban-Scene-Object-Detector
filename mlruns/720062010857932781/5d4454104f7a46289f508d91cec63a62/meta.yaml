@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/User/Documents/Project/project_005/mlruns/720062010857932781/5d4454104f7a46289f508d91cec63a62/artifacts
+end_time: 1761211578888
+entry_point_name: ''
+experiment_id: '720062010857932781'
+lifecycle_stage: active
+run_id: 5d4454104f7a46289f508d91cec63a62
+run_name: Eval_20251023_102604
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1761211565272
+status: 3
+tags: []
+user_id: User

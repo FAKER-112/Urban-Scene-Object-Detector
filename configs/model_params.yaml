@@ -3,7 +3,15 @@ TrainModelConfig:
   DATA_YAML : "data/processed/data.yaml"
   PROJECT_DIR : "artifacts/models"
   RUN_NAME : "train"
-  EPOCHS: 101
+  EPOCHS: 10
   IMGSZ: 640
   DEVICE: 'cpu'
   RESUME: True
+
+EvaluateModelConfig:
+  MODEL_PATH: "artifacts/models/runs/detect/train/weights/best.pt"
+  DATA_YAML: "data/processed/data.yaml"
+  PROJECT_DIR: "artifacts/models"
+  DEVICE: 'cpu'
+  RUN_NAME: "eval"
+  NUM_SAMPLES: 5

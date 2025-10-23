@@ -5,6 +5,7 @@ import mlflow.pytorch
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(project_root)
 from ultralytics import YOLO
+from ultralytics.utils import SETTINGS
 from datetime import datetime
 from src.utils.config_parser import load_config
 from src.utils.exception import CustomException
@@ -13,7 +14,7 @@ from src.utils.logger import logger
 
 def main():
     try:
-        # Load config
+        # Load configuration
         config = load_config(config_path="configs/model_params.yaml")
         cfg = config.get("TrainModelConfig", {})
 
@@ -21,16 +22,19 @@ def main():
         DATA_YAML = cfg.get("DATA_YAML", "data/processed/data.yaml")
         PROJECT_DIR = cfg.get("PROJECT_DIR", "artifacts/models")
         RUN_NAME = cfg.get("RUN_NAME", "train")
-        epochs = cfg.get("EPOCHS", 101)
+        epochs = cfg.get("EPOCHS", 100)
         imgsz = cfg.get("IMGSZ", 640)
         device = cfg.get("DEVICE", 0)
         resume = cfg.get("RESUME", True)
 
-        # Set MLflow experiment
+        # Set up MLflow experiment
         mlflow.set_experiment("YOLOv8_Object_Detection")
 
+        # Enable MLflow autologging
+        mlflow.pytorch.autolog(log_models=True)
+
         with mlflow.start_run(run_name=f"YOLOv8_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
-            # Log parameters (only inside the run context)
+            # Explicitly log parameters for traceability
             mlflow.log_params({
                 "epochs": epochs,
                 "imgsz": imgsz,
@@ -41,6 +45,7 @@ def main():
             })
 
             # Load and train model
+            SETTINGS['mlflow'] = False
             model = YOLO(MODEL_PATH)
             results = model.train(
                 data=DATA_YAML,
@@ -52,18 +57,17 @@ def main():
                 resume=resume,
             )
 
-            # Log metrics safely
+            # Log YOLO metrics manually if autolog misses some
             if hasattr(results, "results_dict"):
                 for key, value in results.results_dict.items():
                     mlflow.log_metric(key, float(value))
 
-            # Log model if available
+            # Log model and artifacts
             trained_weights = os.path.join(PROJECT_DIR, RUN_NAME, "weights", "best.pt")
             if os.path.exists(trained_weights):
                 mlflow.pytorch.log_model(model, artifact_path="model")
                 mlflow.log_artifact(trained_weights)
 
-            # Log artifacts for traceability
             for artifact_file in [
                 DATA_YAML,
                 os.path.join(PROJECT_DIR, RUN_NAME, "results.csv"),
@@ -72,7 +76,7 @@ def main():
                 if os.path.exists(artifact_file):
                     mlflow.log_artifact(artifact_file)
 
-            logger.info("Training complete. All artifacts logged to MLflow.")
+            logger.info("Training complete. Logged with MLflow autologging enabled.")
 
     except Exception as e:
         logger.error(f"Training failed: {e}")
