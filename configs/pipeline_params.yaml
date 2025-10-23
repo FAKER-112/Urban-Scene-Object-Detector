@@ -1,0 +1,4 @@
+PredictConfig:
+  MODEL_PATH: "artifacts/models/runs/detect/train/weights/best.pt"
+  CONF_THRESHOLD: 0.25
+  OUTPUT_DIR: "runs/detect"

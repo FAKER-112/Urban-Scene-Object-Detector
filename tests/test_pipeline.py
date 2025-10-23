@@ -7,7 +7,7 @@ sys.path.append(project_root)
 from src.utils.config_parser import load_config
 from src.pipeline.predict_pipeline import run_yolo_prediction 
 
-
+# test predict pipeline
 @pytest.fixture
 def sample_image(tmp_path):
     """Provide a small sample image for testing."""
