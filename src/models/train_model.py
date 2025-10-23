@@ -12,7 +12,7 @@ from src.utils.exception import CustomException
 from src.utils.logger import logger
 
 
-def main():
+def TrainModel():
     try:
         # Load configuration
         config = load_config(config_path="configs/model_params.yaml")
@@ -84,4 +84,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    TrainModel()

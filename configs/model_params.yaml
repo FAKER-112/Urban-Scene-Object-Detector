@@ -15,3 +15,5 @@ EvaluateModelConfig:
   DEVICE: 'cpu'
   RUN_NAME: "eval"
   NUM_SAMPLES: 5
+  TRAIN_DIR: "artifacts/models/runs/detect/train"
+  EVAL_REPORT_PATH: "artifacts/models/runs/detect/train/evaluate.md"
