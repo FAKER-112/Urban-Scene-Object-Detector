@@ -1,10 +1,13 @@
-import os
+import os, sys
 import time
 import json
 import cv2
 import argparse
-from ultralytics import YOLO
+import supervision as sv
 import mlflow
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(project_root)
+from ultralytics import YOLO
 from datetime import datetime
 from src.utils.logger import logger
 from src.utils.exception import CustomException
@@ -12,7 +15,7 @@ from src.utils.config_parser import load_config
 
 
 class PredictionPipeline:
-    def __init__(self, config_path="configs/predict_config.yaml"):
+    def __init__(self, config_path="configs/pipeline_params.yaml"):
         try:
             config = load_config(config_path).get("PredictConfig", {})
             self.model_path = config.get("MODEL_PATH", "artifacts/models/runs/detect/train/weights/best.pt")
@@ -96,7 +99,7 @@ class PredictionPipeline:
                 "model_path": self.model_path,
                 "input_source": filename,
                 "is_video": is_video,
-                "output_dir": str(results[0].save_dir),
+                "output_dir": os.path.relpath(str(results[0].save_dir), start=os.getcwd()),
                 "total_time_sec": round(total_time, 3),
                 "fps": round(fps, 2) if fps else None,
                 "total_detections": total_detections,
@@ -136,7 +139,7 @@ class PredictionPipeline:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="YOLOv8 Prediction Pipeline")
     parser.add_argument("--input", required=True, help="Path to image or video")
-    parser.add_argument("--config", default="configs/predict_config.yaml", help="Path to config file")
+    parser.add_argument("--config", default="configs/pipeline_params.yaml", help="Path to config file")
     args = parser.parse_args()
 
     pipeline = PredictionPipeline(config_path=args.config)

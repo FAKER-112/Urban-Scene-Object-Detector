@@ -1,4 +1,8 @@
 PredictConfig:
   MODEL_PATH: "artifacts/models/runs/detect/train/weights/best.pt"
-  CONF_THRESHOLD: 0.25
+  CONF_THRESHOLD: 0.40
   OUTPUT_DIR: "runs/detect"
+  USE_MLFLOW: true
+  MLFLOW_EXPERIMENT: "YOLOv8_Inference"
+  DEVICE: "cpu"
+  OVERWRITE: false
