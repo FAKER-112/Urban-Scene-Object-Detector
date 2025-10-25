@@ -127,7 +127,7 @@ class InferencePipeline:
                 f"Runtime: {batch_metrics['total_runtime_sec']}s"
             )
 
-            return batch_metrics
+            return batch_metrics, metrics_list
 
         except Exception as e:
             raise CustomException(e, sys)
