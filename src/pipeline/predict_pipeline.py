@@ -59,7 +59,8 @@ class PredictionPipeline:
                 save=True,
                 project=run_output_dir,
                 conf=self.conf_threshold,
-                verbose=False
+                verbose=False,
+                imgsz=960
             )
 
             # Stop timing
