@@ -1,2 +1,14 @@
 pycocotools
 tqdm
+ultralytics
+numpy<2.0
+opencv-python
+numpy
+pandas
+torch
+supervision
+pyyaml
+mlflow
+gradio
+streamlit
+Pillow
