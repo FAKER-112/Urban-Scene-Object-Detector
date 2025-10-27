@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inference Frontend</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        #confidence-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background-color: #4f46e5; /* indigo-600 */
+            border-radius: 9999px;
+            cursor: pointer;
+            margin-top: -6px; /* Center the thumb on the track */
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        #confidence-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background-color: #4f46e5; /* indigo-600 */
+            border-radius: 9999px;
+            cursor: pointer;
+            border: none;
+        }
+
+        #confidence-slider::-webkit-slider-thumb:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+        #confidence-slider::-moz-range-thumb:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans antialiased text-slate-900">
+
+    <div class="container mx-auto max-w-5xl p-5 md:p-10">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-900">
+                Urban Scene Detection
+            </h1>
+            <p class="text-lg text-slate-600 mt-2">
+                Upload images to detect urban scenes with our model.
+            </p>
+        </header>
+
+        <div class="mb-6 border-b border-slate-200">
+            <nav class="flex -mb-px" aria-label="Tabs">
+                <button id="tab-single" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-indigo-600 border-indigo-500 transition-colors duration-150" aria-current="page">
+                    Single Prediction
+                </button>
+                <button id="tab-batch" class="w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300 transition-colors duration-150">
+                    Batch Prediction
+                </button>
+            </nav>
+        </div>
+
+        <div id="input-preview-container" class="mb-6 bg-white p-6 rounded-xl shadow-lg hidden">
+            <h3 id="input-preview-title" class="text-xl font-semibold text-slate-800 mb-4">Input Preview</h3>
+            <div id="input-preview-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                </div>
+        </div>
+
+        <form id="prediction-form" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg space-y-6">
+            
+            <div>
+                <label for="file-input" class="block text-sm font-medium text-slate-700 mb-2">
+                    Upload Image(s)
+                </label>
+                <label id="file-label" for="file-input" class="relative flex flex-col items-center justify-center w-full p-6 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors duration-150">
+                    <div class="text-center">
+                        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <p class="mt-2 text-sm text-slate-600">
+                            <span class="font-semibold text-indigo-600">Click to upload</span> or drag and drop
+                        </p>
+                        <p class="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</p>
+                    </div>
+                </label>
+                <input id="file-input" name="file" type="file" accept="image/*" class="hidden" />
+                
+                <span id="file-name-display" class="text-sm text-slate-500 mt-2 block">No files selected.</span>
+            </div>
+
+            <div>
+                <label for="confidence-slider" class="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                    <span>Confidence Threshold</span>
+                    <span id="confidence-value" class="font-bold text-indigo-600">0.30</span>
+                </label>
+                <input id="confidence-slider" name="confidence_threshold" type="range" min="0.01" max="1.0" step="0.01" value="0.3"
+                       class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <button type="submit"
+                    class="w-full flex justify-center items-center px-6 py-3 border border-transparent
+                           text-base font-medium rounded-lg text-white bg-indigo-600
+                           hover:bg-indigo-700 focus:outline-none focus:ring-2
+                           focus:ring-offset-2 focus:ring-indigo-500 
+                           disabled:bg-indigo-400 disabled:cursor-not-allowed
+                           transition-all duration-150"
+                    id="submit-button">
+                
+                <svg id="loader-svg" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="submit-button-text">Run Prediction</span>
+            </button>
+        </form>
+
+        <div id="error-container" class="mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg hidden">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <strong class="font-bold">Error:</strong>
+                    <span id="error-message" class="block sm:inline"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-container" class="mt-6 space-y-6 hidden">
+            </div>
+
+        <div id="json-container" class="mt-8 hidden">
+            <h3 class="text-xl font-semibold text-slate-800 mb-3">Raw JSON Response</h3>
+            <pre class="bg-slate-800 text-white p-4 rounded-lg overflow-x-auto text-sm shadow-inner">
+                <code id="json-output"></code>
+            </pre>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- DOM Elements ---
+            const tabSingle = document.getElementById('tab-single');
+            const tabBatch = document.getElementById('tab-batch');
+            const form = document.getElementById('prediction-form');
+            const fileInput = document.getElementById('file-input');
+            // DESIGN NOTE: Added element for custom file input
+            const fileNameDisplay = document.getElementById('file-name-display'); 
+            const confidenceSlider = document.getElementById('confidence-slider');
+            const confidenceValue = document.getElementById('confidence-value');
+            const submitButton = document.getElementById('submit-button');
+            const submitButtonText = document.getElementById('submit-button-text');
+            const loaderSvg = document.getElementById('loader-svg');
+            const errorContainer = document.getElementById('error-container');
+            const errorMessage = document.getElementById('error-message');
+            const resultsContainer = document.getElementById('results-container');
+            const jsonContainer = document.getElementById('json-container');
+            const jsonOutput = document.getElementById('json-output');
+            
+            const inputPreviewContainer = document.getElementById('input-preview-container');
+            const inputPreviewGrid = document.getElementById('input-preview-grid');
+            const inputPreviewTitle = document.getElementById('input-preview-title');
+
+            // --- State ---
+            let currentMode = 'single';
+            let previousInputUrls = []; 
+            const endpoints = {
+                single: 'http://localhost:8001/predict',
+                batch: 'http://localhost:8000/predict/batch'
+            };
+
+            // --- Event Listeners ---
+            tabSingle.addEventListener('click', () => setMode('single'));
+            tabBatch.addEventListener('click', () => setMode('batch'));
+            
+            confidenceSlider.addEventListener('input', (e) => {
+                confidenceValue.textContent = parseFloat(e.target.value).toFixed(2);
+            });
+            
+            form.addEventListener('submit', handleFormSubmit);
+            fileInput.addEventListener('change', showInputPreview); 
+
+            // --- Functions ---
+
+            function setMode(mode) {
+                currentMode = mode;
+                clearDisplays();
+                fileInput.value = ''; // Clear file input on mode change
+                
+                // DESIGN NOTE: Clear custom file name display on mode change
+                if (fileNameDisplay) {
+                    fileNameDisplay.textContent = 'No files selected.';
+                }
+
+                if (mode === 'single') {
+                    // Style active tab
+                    tabSingle.classList.add('text-indigo-600', 'border-indigo-500');
+                    tabSingle.classList.remove('text-slate-500', 'border-transparent', 'hover:text-slate-700', 'hover:border-slate-300');
+                    // Style inactive tab
+                    tabBatch.classList.add('text-slate-500', 'border-transparent', 'hover:text-slate-700', 'hover:border-slate-300');
+                    tabBatch.classList.remove('text-indigo-600', 'border-indigo-500');
+                    // Update file input logic
+                    fileInput.multiple = false;
+                    fileInput.name = 'file';
+                } else { // 'batch'
+                    // Style active tab
+                    tabBatch.classList.add('text-indigo-600', 'border-indigo-500');
+                    tabBatch.classList.remove('text-slate-500', 'border-transparent', 'hover:text-slate-700', 'hover:border-slate-300');
+                    // Style inactive tab
+                    tabSingle.classList.add('text-slate-500', 'border-transparent', 'hover:text-slate-700', 'hover:border-slate-300');
+                    tabSingle.classList.remove('text-indigo-600', 'border-indigo-500');
+                    // Update file input logic
+                    fileInput.multiple = true;
+                    fileInput.name = 'files';
+                }
+            }
+
+            // ** UPDATED FUNCTION: Shows previews and updates custom file name display **
+            function showInputPreview(e) {
+                // Revoke all old URLs
+                if (previousInputUrls.length > 0) {
+                    previousInputUrls.forEach(url => URL.revokeObjectURL(url));
+                    previousInputUrls = [];
+                }
+                
+                inputPreviewGrid.innerHTML = ''; // Clear old images
+                const files = e.target.files;
+
+                // DESIGN NOTE: Update the file name display text
+                if (files.length === 1) {
+                    fileNameDisplay.textContent = files[0].name;
+                } else if (files.length > 1) {
+                    fileNameDisplay.textContent = `${files.length} files selected`;
+                } else {
+                    fileNameDisplay.textContent = 'No files selected.';
+                }
+
+                if (files && files.length > 0) {
+                    inputPreviewContainer.classList.remove('hidden');
+                    
+                    if (currentMode === 'batch') {
+                        inputPreviewTitle.textContent = `Input Previews (${files.length})`;
+                        // Batch: Show a grid of smaller images
+                        for (const file of files) {
+                            const newUrl = URL.createObjectURL(file);
+                            previousInputUrls.push(newUrl); // Store for revoking
+                            
+                            const img = document.createElement('img');
+                            img.src = newUrl;
+                            img.alt = file.name;
+                            // DESIGN NOTE: Changed to 'object-cover' for a uniform grid
+                            img.className = 'aspect-square w-full h-full object-cover rounded-lg border border-slate-200 shadow-sm';
+                            inputPreviewGrid.appendChild(img);
+                        }
+                    } else {
+                        // Single: Show one larger image
+                        inputPreviewTitle.textContent = 'Input Preview';
+                        const file = files[0];
+                        const newUrl = URL.createObjectURL(file);
+                        previousInputUrls.push(newUrl); // Store for revoking
+                        
+                        const img = document.createElement('img');
+                        img.src = newUrl;
+                        img.alt = file.name;
+                        // DESIGN NOTE: Improved single preview styling
+                        img.className = 'max-h-96 w-auto mx-auto rounded-lg border border-slate-200 shadow-md object-contain';
+                        inputPreviewGrid.appendChild(img);
+                    }
+                } else {
+                    inputPreviewContainer.classList.add('hidden');
+                }
+            }
+
+            async function handleFormSubmit(e) {
+                e.preventDefault();
+                setLoading(true);
+                clearDisplays(false); // Don't clear input preview
+
+                const files = fileInput.files;
+                const confidence = confidenceSlider.value;
+                
+                if (files.length === 0) {
+                    showError('Please select at least one file.');
+                    setLoading(false);
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('confidence_threshold', confidence);
+
+                if (currentMode === 'single') {
+                    formData.append('file', files[0]);
+                } else {
+                    for (const file of files) {
+                        formData.append('files', file);
+                    }
+                }
+
+                try {
+                    const url = endpoints[currentMode];
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+                    
+                    jsonOutput.textContent = JSON.stringify(data, null, 2);
+                    jsonContainer.classList.remove('hidden');
+
+                    if (!response.ok) {
+                        throw new Error(data.detail || `Server error: ${response.status}`);
+                    }
+
+                    displayResults(data);
+
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    let msg = error.message;
+                    if (error.name === 'TypeError' && msg.toLowerCase().includes('failed to fetch')) { 
+                        msg = 'Cannot connect to the backend. Is the server running? Check CORS policy.';
+                    } else if (error.name === 'TypeError') {
+                        msg = `Data parsing error: ${error.message}. Check console and Raw JSON.`;
+                    }
+                    showError(msg);
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            // ** UPDATED FUNCTION: Reads 'batch_metrics' and 'details' **
+            function displayResults(data) {
+                resultsContainer.innerHTML = '';
+                
+                if (currentMode === 'single') {
+                    if (data.error) {
+                        showError(`Backend error for ${data.filename}: ${data.error}`);
+                        return;
+                    }
+                    // DESIGN NOTE: All styling is now handled by the card creation function
+                    resultsContainer.appendChild(createSingleResultCard(data, "Prediction Result"));
+                } else {
+                    // Batch results
+                    const summary = document.createElement('div');
+                    // DESIGN NOTE: Styled batch summary card
+                    summary.className = 'mb-6 p-6 bg-indigo-50 border border-indigo-200 rounded-xl shadow-lg';
+                    
+                    const metrics = data.batch_metrics || {};
+                    // DESIGN NOTE: Using a responsive grid for batch summary stats
+                    summary.innerHTML = `
+                        <h2 class="text-2xl font-semibold text-indigo-900 mb-4">Batch Summary</h2>
+                        <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                            <div class="flex flex-col">
+                                <dt class="text-sm font-medium text-indigo-700">Total Files</dt>
+                                <dd class="text-lg font-semibold text-indigo-900">${metrics.total_files || 'N/A'}</dd>
+                            </div>
+                            <div class="flex flex-col">
+                                <dt class="text-sm font-medium text-indigo-700">Successful</dt>
+                                <dd class="text-lg font-semibold text-green-700">${metrics.successful_inferences || 'N/A'}</dd>
+                            </div>
+                            <div class="flex flex-col">
+                                <dt class="text-sm font-medium text-indigo-700">Failed</dt>
+                                <dd class="text-lg font-semibold text-red-700">${metrics.failed_inferences || 'N/A'}</dd>
+                            </div>
+                            <div class="flex flex-col">
+                                <dt class="text-sm font-medium text-indigo-700">Avg. Confidence</dt>
+                                <dd class="text-lg font-semibold text-indigo-900">${parseFloat(metrics.avg_confidence || 0).toFixed(4)}</dd>
+                            </div>
+                            <div class="flex flex-col">
+                                <dt class="text-sm font-medium text-indigo-700">Total Runtime</dt>
+                                <dd class="text-lg font-semibold text-indigo-900">${parseFloat(metrics.total_runtime_sec || 0).toFixed(2)}s</dd>
+                            </div>
+                        </dl>
+                    `;
+                    resultsContainer.appendChild(summary);
+
+                    if (data.details && Array.isArray(data.details)) {
+                        data.details.forEach(result => {
+                            if (result.error) {
+                                const errorCard = document.createElement('div');
+                                errorCard.className = 'border border-red-200 bg-red-50 rounded-xl p-4 shadow-lg';
+                                errorCard.innerHTML = `<p><strong class="font-medium text-red-800">Error for ${result.filename}:</strong> ${result.error}</p>`;
+                                resultsContainer.appendChild(errorCard);
+                            } else {
+                                // Re-use the same card component
+                                const card = createSingleResultCard(result, `Result for: ${result.filename}`);
+                                resultsContainer.appendChild(card);
+                            }
+                        });
+                    }
+                }
+                
+                resultsContainer.classList.remove('hidden');
+            }
+            
+            // ** "UNIVERSAL" FUNCTION: REDESIGNED to create a modern, responsive card **
+            function createSingleResultCard(data, title) {
+                const card = document.createElement('div');
+                // DESIGN NOTE: This is the new, modern card style
+                card.className = 'bg-white border border-slate-200 rounded-xl p-6 shadow-lg';
+                
+                const metrics = data.metrics || data.raw || {};
+                const summaryArray = metrics.detection_summary || [];
+                
+                const avg_conf = data.avg_confidence || metrics.avg_confidence || 0;
+                const runtime = data.total_time_sec || metrics.total_time_sec || 0;
+                const outputDir = data.output_dir || metrics.output_dir;
+                const base64String = data.output_image_base64;
+
+                let detectionsHtml = '<li class="text-slate-500">No detection summary provided.</li>';
+                if (summaryArray.length > 0) {
+                    detectionsHtml = summaryArray.map(summary => `
+                        <li class="py-1">
+                            Image Source: <strong>${summary.image}</strong>
+                            <ul class="list-disc list-inside ml-4 text-slate-600">
+                                <li>Detections: ${summary.num_detections}</li>
+                                <li>Avg. Confidence: ${parseFloat(summary.avg_confidence).toFixed(4)}</li>
+                            </ul>
+                        </li>
+                    `).join('');
+                }
+                
+                let outputImageHtml = '';
+                if (base64String) {
+                    const outputImageUrl = `data:image/jpeg;base64,${base64String}`;
+                    outputImageHtml = `
+                        <div class="mt-6">
+                            <h4 class="text-md font-semibold text-slate-700 mb-2">Output Preview</h4>
+                            <img src="${outputImageUrl}" alt="Output Image" 
+                                 class="max-h-[600px] w-full object-contain rounded-lg border-2 border-slate-200 bg-slate-50">
+                        </div>
+                    `;
+                } else if (outputDir) {
+                    outputImageHtml = `
+                        <div class="mt-6 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                            <h4 class="text-md font-semibold text-yellow-800 mb-1">Output Preview</h4>
+                            <p class="text-yellow-700 text-sm">Could not load output image preview (Base64 encoding failed on server).</p>
+                        </div>
+                    `;
+                }
+
+                // DESIGN NOTE: Cleaner styling for the output directory path
+                const outputDirHtml = outputDir
+                    ? `<div class="md:col-span-3 mt-4">
+                           <span class="text-sm font-medium text-slate-500">Output Directory</span>
+                           <p class="font-mono text-sm text-indigo-800 bg-indigo-50 p-3 rounded-lg mt-1 break-all">${outputDir}</p>
+                       </div>`
+                    : '';
+                
+                // DESIGN NOTE: Complete card redesign using a responsive grid for stats
+                card.innerHTML = `
+                    <h3 class="text-xl font-semibold text-slate-900 mb-4">${title}</h3>
+                    
+                    <dl class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+                        <div class="flex flex-col">
+                            <dt class="text-sm font-medium text-slate-500">Filename</dt>
+                            <dd class="text-base font-semibold text-slate-900 break-words">${data.filename}</dd>
+                        </div>
+                        <div class="flex flex-col">
+                            <dt class="text-sm font-medium text-slate-500">Avg. Confidence (Overall)</dt>
+                            <dd class="text-base font-semibold text-slate-900">${parseFloat(avg_conf).toFixed(4)}</dd>
+                        </div>
+                        <div class="flex flex-col">
+                            <dt class="text-sm font-medium text-slate-500">Runtime</dt>
+                            <dd class="text-base font-semibold text-slate-900">${parseFloat(runtime).toFixed(4)}s</dd>
+                        </div>
+                    </dl>
+                    
+                    ${outputDirHtml}
+                    
+                    <div class="mt-6">
+                        <h4 class="text-md font-semibold text-slate-700 mb-2">Detection Summary</h4>
+                        <ul class="list-none space-y-1 text-sm text-slate-800">${detectionsHtml}</ul>
+                    </div>
+                    
+                    ${outputImageHtml}
+                `;
+                return card;
+            }
+
+            function setLoading(isLoading) {
+                submitButton.disabled = isLoading;
+                isLoading ? loaderSvg.classList.remove('hidden') : loaderSvg.classList.add('hidden');
+                submitButtonText.textContent = isLoading ? 'Processing...' : 'Run Prediction';
+            }
+
+            function showError(msg) {
+                errorMessage.textContent = msg;
+                errorContainer.classList.remove('hidden');
+            }
+
+            // ** UPDATED: Clears multi-URL array, preview grid, and file name display **
+            function clearDisplays(clearInputPreview = true) {
+                errorContainer.classList.add('hidden');
+                resultsContainer.classList.add('hidden');
+                jsonContainer.classList.add('hidden');
+                resultsContainer.innerHTML = '';
+                errorMessage.textContent = '';
+                jsonOutput.textContent = '';
+
+                if (clearInputPreview) {
+                    inputPreviewContainer.classList.add('hidden');
+                    inputPreviewGrid.innerHTML = '';
+                    
+                    // DESIGN NOTE: Also clear the file name display
+                    if (fileNameDisplay) {
+                        fileNameDisplay.textContent = 'No files selected.';
+                    }
+
+                    if (previousInputUrls.length > 0) {
+                        previousInputUrls.forEach(url => URL.revokeObjectURL(url));
+                        previousInputUrls = [];
+                    }
+                }
+            }
+
+            // Initialize app on load
+            setMode('single');
+        });
+    </script>
+</body>
+</html>
