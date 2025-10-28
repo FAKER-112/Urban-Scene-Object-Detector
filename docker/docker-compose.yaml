@@ -1,14 +1,14 @@
 #version: "3.11"
-services:
-  yolo_app:
-    build: ./docker
-    container_name: urban_yolo_app
-    ports:
-      - "8501:8501"
-    volumes:
-      - ../artifacts:/app/artifacts
-      - ../configs:/app/configs
-      - ../uploads:/app/uploads
-    environment:
-      - PYTHONUNBUFFERED=1
-    restart: always
+# services:
+#   yolo_app:
+#     build: ./docker
+#     container_name: urban_yolo_app
+#     ports:
+#       - "8501:8501"
+#     volumes:
+#       - ../artifacts:/app/artifacts
+#       - ../configs:/app/configs
+#       - ../uploads:/app/uploads
+#     environment:
+#       - PYTHONUNBUFFERED=1
+#     restart: always
