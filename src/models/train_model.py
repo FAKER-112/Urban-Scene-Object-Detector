@@ -1,8 +1,29 @@
+"""
+This module contains the TrainModel function, which manages the training process
+for the YOLOv8 object detection model and integrates tracking with MLflow.
+
+The script performs:
+1. Configuration Loading: Retrieves training parameters (epochs, image size, paths)
+   from `configs/model_params.yaml`.
+2. Experiment Tracking: Sets up an MLflow experiment and enables autologging for
+   PyTorch/YOLO training metrics and parameters.
+3. Model Training: Initializes a YOLO model from a specified checkpoint and executes
+   training using the processed dataset.
+4. Artifact Logging: Saves training results, including the best model weights,
+   performance charts (confusion matrix), and logs to the MLflow run.
+
+Usage:
+    python src/models/train_model.py
+"""
+
 import os
 import sys
 import mlflow
 import mlflow.pytorch
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(project_root)
 from ultralytics import YOLO
 from ultralytics.utils import SETTINGS
@@ -18,7 +39,9 @@ def TrainModel():
         config = load_config(config_path="configs/model_params.yaml")
         cfg = config.get("TrainModelConfig", {})
 
-        MODEL_PATH = cfg.get("MODEL_PATH", "artifacts/models/runs/detect/train/weights/last.pt")
+        MODEL_PATH = cfg.get(
+            "MODEL_PATH", "artifacts/models/runs/detect/train/weights/last.pt"
+        )
         DATA_YAML = cfg.get("DATA_YAML", "data/processed/data.yaml")
         PROJECT_DIR = cfg.get("PROJECT_DIR", "artifacts/models")
         RUN_NAME = cfg.get("RUN_NAME", "train")
@@ -33,19 +56,23 @@ def TrainModel():
         # Enable MLflow autologging
         mlflow.pytorch.autolog(log_models=True)
 
-        with mlflow.start_run(run_name=f"YOLOv8_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+        with mlflow.start_run(
+            run_name=f"YOLOv8_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        ):
             # Explicitly log parameters for traceability
-            mlflow.log_params({
-                "epochs": epochs,
-                "imgsz": imgsz,
-                "device": device,
-                "resume": resume,
-                "model_path": MODEL_PATH,
-                "data_yaml": DATA_YAML
-            })
+            mlflow.log_params(
+                {
+                    "epochs": epochs,
+                    "imgsz": imgsz,
+                    "device": device,
+                    "resume": resume,
+                    "model_path": MODEL_PATH,
+                    "data_yaml": DATA_YAML,
+                }
+            )
 
             # Load and train model
-            SETTINGS['mlflow'] = False
+            SETTINGS["mlflow"] = False
             model = YOLO(MODEL_PATH)
             results = model.train(
                 data=DATA_YAML,
@@ -80,7 +107,7 @@ def TrainModel():
 
     except Exception as e:
         logger.error(f"Training failed: {e}")
-        raise CustomException(e,sys)
+        raise CustomException(e, sys)
 
 
 if __name__ == "__main__":

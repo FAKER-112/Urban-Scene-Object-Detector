@@ -1,3 +1,21 @@
+"""
+This module provides the FeatureEngineering class, which prepares the dataset
+for model training by converting COCO-formatted data into the YOLO format.
+
+The script performs:
+1. Dataset Splitting: Randomly partitions the dataset into training and validation sets
+   based on a configurable ratio.
+2. Format Conversion: Transforms COCO bounding box coordinates (x, y, width, height)
+   into YOLO-compatible normalized center-based coordinates (xc, yc, w, h).
+3. Workspace Organization: Structures the processed images and corresponding YOLO
+   label text files into appropriate subdirectories (train/val).
+4. YAML Configuration: Generates a YOLO `data.yaml` file containing paths to
+   the splits and the category names for training.
+
+The service relies on PyTorch's CocoDetection for initial data access and logs
+the transformation progress.
+"""
+
 import os
 import sys
 import json
@@ -26,13 +44,19 @@ class FeatureEngineering:
 
             cfg = self.config.get("FeatureEngConfig", {})
             self.base_dir = Path(cfg.get("base_dir", "data/processed"))
-            self.image_dir = Path(cfg.get("image_dir", "data/raw/urban_scene_images/images"))
-            self.ann_dir = Path(cfg.get("ann_dir", "data/raw/urban_scene_images/annotation_minimal.json"))
+            self.image_dir = Path(
+                cfg.get("image_dir", "data/raw/urban_scene_images/images")
+            )
+            self.ann_dir = Path(
+                cfg.get(
+                    "ann_dir", "data/raw/urban_scene_images/annotation_minimal.json"
+                )
+            )
 
             clean_cfg = self.config.get("CleanDataConfig", {})
             self.target_classes = clean_cfg.get(
                 "target_classes",
-                ["person", "bicycle", "car", "motorcycle", "bus", "truck"]
+                ["person", "bicycle", "car", "motorcycle", "bus", "truck"],
             )
 
             self.train_ratio = cfg.get("train_ratio", 0.8)
@@ -53,11 +77,15 @@ class FeatureEngineering:
     def _split_dataset(self):
         """Split the full dataset into train and test subsets."""
         transform = transforms.ToTensor()
-        full_dataset = CocoDetection(root=self.image_dir, annFile=self.ann_dir, transform=transform)
+        full_dataset = CocoDetection(
+            root=self.image_dir, annFile=self.ann_dir, transform=transform
+        )
         total_size = len(full_dataset)
         train_size = int(self.train_ratio * total_size)
         test_size = total_size - train_size
-        self.logger.info(f"Dataset size: {total_size} | Train: {train_size} | Test: {test_size}")
+        self.logger.info(
+            f"Dataset size: {total_size} | Train: {train_size} | Test: {test_size}"
+        )
         return random_split(full_dataset, [train_size, test_size])
 
     def _save_splits(self, train_dataset, test_dataset):
@@ -67,7 +95,9 @@ class FeatureEngineering:
                 data = json.load(f)
 
             id_to_file = {img["id"]: img["file_name"] for img in data["images"]}
-            id_to_size = {img["id"]: (img["width"], img["height"]) for img in data["images"]}
+            id_to_size = {
+                img["id"]: (img["width"], img["height"]) for img in data["images"]
+            }
 
             img_to_boxes = {}
             for ann in data["annotations"]:
@@ -81,7 +111,9 @@ class FeatureEngineering:
                 yc = (y + h / 2) / img_h
                 return xc, yc, w / img_w, h / img_h
 
-            for split_name, dataset in zip(["train", "val"], [train_dataset, test_dataset]):
+            for split_name, dataset in zip(
+                ["train", "val"], [train_dataset, test_dataset]
+            ):
                 img_out = self.base_dir / split_name / "images"
                 lbl_out = self.base_dir / split_name / "labels"
                 img_out.mkdir(parents=True, exist_ok=True)
@@ -102,12 +134,14 @@ class FeatureEngineering:
                     txt_path = lbl_out / f"{Path(filename).stem}.txt"
 
                     with open(txt_path, "w") as f:
-                        for (bbox, cat_id) in boxes:
+                        for bbox, cat_id in boxes:
                             x, y, w, h = bbox
                             xc, yc, w, h = coco_to_yolo(x, y, w, h, img_w, img_h)
                             f.write(f"{cat_id} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
 
-                self.logger.info(f"Saved {split_name} images and labels to {img_out.parent}")
+                self.logger.info(
+                    f"Saved {split_name} images and labels to {img_out.parent}"
+                )
 
         except Exception as e:
             raise CustomException(e, sys)
@@ -124,6 +158,7 @@ class FeatureEngineering:
             }
 
             import yaml
+
             yaml_path.parent.mkdir(parents=True, exist_ok=True)
             with open(yaml_path, "w") as f:
                 yaml.safe_dump(yaml_content, f, sort_keys=False)

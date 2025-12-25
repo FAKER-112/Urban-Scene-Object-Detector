@@ -1,3 +1,18 @@
+"""
+This module contains the InferencePipeline class, which orchestrates batch
+processing for multiple images or videos using the PredictionPipeline.
+
+Key Features:
+- Concurrent Execution: Uses ThreadPoolExecutor to run multiple inference tasks
+  simultaneously, improving throughput for large datasets.
+- Batch Metrics: Aggregates detection results, confidence scores, and processing
+  times across an entire directory of files.
+- MLflow Integration: Groups batch results into a single MLflow run for easy
+  experiment tracking and artifact management.
+- Fault Tolerance: Handles individual file processing errors gracefully,
+  ensuring the rest of the batch completes.
+"""
+
 import os
 import sys
 import json
@@ -8,7 +23,9 @@ import concurrent.futures
 from datetime import datetime
 
 # Add project root for imports
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(project_root)
 
 from typing import Dict, List, Optional
@@ -24,24 +41,33 @@ class InferencePipeline:
     Handles multiple inputs, MLflow logging, and device control.
     """
 
-    def __init__(self, config_path="configs/pipeline_params.yaml", 
-        
+    def __init__(
+        self,
+        config_path="configs/pipeline_params.yaml",
         input_dir: Optional[str] = None,
         output_dir: Optional[str] = None,
         device: Optional[str] = None,
         model_path: Optional[str] = None,
-        ):
+    ):
         try:
             config = load_config(config_path).get("PredictConfig", {})
 
-            self.input_dir = input_dir or config.get("INPUT_DIR", "data/processed/val/images")
-            self.output_dir = output_dir or config.get("OUTPUT_DIR", "runs/detect_batch")
+            self.input_dir = input_dir or config.get(
+                "INPUT_DIR", "data/processed/val/images"
+            )
+            self.output_dir = output_dir or config.get(
+                "OUTPUT_DIR", "runs/detect_batch"
+            )
             self.device = device or config.get("DEVICE", "cpu")
             self.use_mlflow = config.get("USE_MLFLOW", True)
-            self.experiment_name = config.get("MLFLOW_EXPERIMENT", "YOLOv8_BatchInference")
+            self.experiment_name = config.get(
+                "MLFLOW_EXPERIMENT", "YOLOv8_BatchInference"
+            )
             self.max_workers = config.get("MAX_WORKERS", 4)
             self.conf_threshold = config.get("CONF_THRESHOLD", 0.25)
-            self.model_path = model_path or  config.get("MODEL_PATH", "artifacts/models/runs/detect/train/weights/best.pt")
+            self.model_path = model_path or config.get(
+                "MODEL_PATH", "artifacts/models/runs/detect/train/weights/best.pt"
+            )
 
             os.makedirs(self.output_dir, exist_ok=True)
             logger.info(f"Initialized InferencePipeline with device={self.device}")
@@ -78,26 +104,41 @@ class InferencePipeline:
             # Enable MLflow
             if self.use_mlflow:
                 mlflow.set_experiment(self.experiment_name)
-                mlflow_run = mlflow.start_run(run_name=f"BatchInference_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+                mlflow_run = mlflow.start_run(
+                    run_name=f"BatchInference_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                )
                 mlflow.log_param("device", self.device)
                 mlflow.log_param("model_path", self.model_path)
                 mlflow.log_param("conf_threshold", self.conf_threshold)
 
             # Parallel execution
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = [executor.submit(self._run_single_inference, prediction_pipeline, f) for f in input_files]
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=self.max_workers
+            ) as executor:
+                futures = [
+                    executor.submit(self._run_single_inference, prediction_pipeline, f)
+                    for f in input_files
+                ]
                 for future in concurrent.futures.as_completed(futures):
                     result = future.result()
                     metrics_list.append(result)
 
             # Aggregate metrics
-            total_detections = sum(m.get("total_detections", 0) for m in metrics_list if "error" not in m)
-            avg_confidences = [m.get("avg_confidence", 0) for m in metrics_list if "error" not in m]
-            avg_conf = sum(avg_confidences) / len(avg_confidences) if avg_confidences else 0
+            total_detections = sum(
+                m.get("total_detections", 0) for m in metrics_list if "error" not in m
+            )
+            avg_confidences = [
+                m.get("avg_confidence", 0) for m in metrics_list if "error" not in m
+            ]
+            avg_conf = (
+                sum(avg_confidences) / len(avg_confidences) if avg_confidences else 0
+            )
 
             batch_metrics = {
                 "total_files": len(input_files),
-                "successful_inferences": len([m for m in metrics_list if "error" not in m]),
+                "successful_inferences": len(
+                    [m for m in metrics_list if "error" not in m]
+                ),
                 "failed_inferences": len([m for m in metrics_list if "error" in m]),
                 "total_detections": total_detections,
                 "avg_confidence": round(avg_conf, 3),
@@ -108,15 +149,21 @@ class InferencePipeline:
             # Save results
             metrics_path = os.path.join(self.output_dir, "batch_metrics.json")
             with open(metrics_path, "w") as f:
-                json.dump({"batch_metrics": batch_metrics, "details": metrics_list}, f, indent=4)
+                json.dump(
+                    {"batch_metrics": batch_metrics, "details": metrics_list},
+                    f,
+                    indent=4,
+                )
 
             # Log batch metrics to MLflow
             if self.use_mlflow:
-                mlflow.log_metrics({
-                    "batch_total_detections": total_detections,
-                    "batch_avg_confidence": avg_conf,
-                    "batch_runtime_sec": batch_metrics["total_runtime_sec"]
-                })
+                mlflow.log_metrics(
+                    {
+                        "batch_total_detections": total_detections,
+                        "batch_avg_confidence": avg_conf,
+                        "batch_runtime_sec": batch_metrics["total_runtime_sec"],
+                    }
+                )
                 mlflow.log_artifact(metrics_path)
                 mlflow.end_run()
                 logger.info("Batch inference metrics logged to MLflow.")
@@ -131,7 +178,7 @@ class InferencePipeline:
 
         except Exception as e:
             raise CustomException(e, sys)
-        
+
         finally:
             if self.use_mlflow and mlflow.active_run():
                 mlflow.end_run()

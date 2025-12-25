@@ -1,3 +1,14 @@
+"""
+This module provides the PredictionPipeline class for running YOLOv8 model inference.
+
+The pipeline supports:
+- Single-target inference on both images and videos.
+- Dynamic configuration of model paths and confidence thresholds via YAML.
+- Calculation of performance metrics (inference time, average confidence, detections).
+- Automated export of results and performance data to local directories and MLflow.
+- Temporary handling of file-like objects for flexible input sources.
+"""
+
 import os, sys
 import time
 import json
@@ -5,7 +16,10 @@ import cv2
 import argparse
 import supervision as sv
 import mlflow
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(project_root)
 from ultralytics import YOLO
 from datetime import datetime
@@ -18,7 +32,9 @@ class PredictionPipeline:
     def __init__(self, config_path="configs/pipeline_params.yaml"):
         try:
             config = load_config(config_path).get("PredictConfig", {})
-            self.model_path = config.get("MODEL_PATH", "artifacts/models/runs/detect/train/weights/best.pt")
+            self.model_path = config.get(
+                "MODEL_PATH", "artifacts/models/runs/detect/train/weights/best.pt"
+            )
             self.conf_threshold = config.get("CONF_THRESHOLD", 0.25)
             self.output_dir = config.get("OUTPUT_DIR", "runs/detect")
             self.use_mlflow = config.get("USE_MLFLOW", False)
@@ -60,9 +76,9 @@ class PredictionPipeline:
                 project=run_output_dir,
                 conf=self.conf_threshold,
                 verbose=False,
-                imgsz=960
+                imgsz=960,
             )
-            #model.to(self.device)
+            # model.to(self.device)
             # Stop timing
             total_time = time.time() - start_time
 
@@ -75,13 +91,17 @@ class PredictionPipeline:
                     confs = boxes.conf.cpu().numpy().tolist()
                     total_conf += sum(confs)
                     total_detections += len(confs)
-                    detection_summary.append({
-                        "image": os.path.basename(result.path),
-                        "num_detections": len(confs),
-                        "avg_confidence": sum(confs) / len(confs)
-                    })
+                    detection_summary.append(
+                        {
+                            "image": os.path.basename(result.path),
+                            "num_detections": len(confs),
+                            "avg_confidence": sum(confs) / len(confs),
+                        }
+                    )
 
-            avg_confidence = total_conf / total_detections if total_detections > 0 else 0
+            avg_confidence = (
+                total_conf / total_detections if total_detections > 0 else 0
+            )
 
             # Calculate FPS for video
             fps = None
@@ -100,12 +120,14 @@ class PredictionPipeline:
                 "model_path": self.model_path,
                 "input_source": filename,
                 "is_video": is_video,
-                "output_dir": os.path.relpath(str(results[0].save_dir), start=os.getcwd()),
+                "output_dir": os.path.relpath(
+                    str(results[0].save_dir), start=os.getcwd()
+                ),
                 "total_time_sec": round(total_time, 3),
                 "fps": round(fps, 2) if fps else None,
                 "total_detections": total_detections,
                 "avg_confidence": round(avg_confidence, 3),
-                "detection_summary": detection_summary
+                "detection_summary": detection_summary,
             }
 
             # Save metrics as JSON
@@ -127,8 +149,10 @@ class PredictionPipeline:
                     mlflow.log_artifact(metrics_path)
                     logger.info("Inference logged to MLflow.")
 
-            logger.info(f"✅ Inference complete in {metrics['total_time_sec']}s | "
-                        f"Detections: {total_detections} | Avg Conf: {metrics['avg_confidence']:.2f}")
+            logger.info(
+                f"✅ Inference complete in {metrics['total_time_sec']}s | "
+                f"Detections: {total_detections} | Avg Conf: {metrics['avg_confidence']:.2f}"
+            )
 
             return metrics
 
@@ -140,7 +164,9 @@ class PredictionPipeline:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="YOLOv8 Prediction Pipeline")
     parser.add_argument("--input", required=True, help="Path to image or video")
-    parser.add_argument("--config", default="configs/pipeline_params.yaml", help="Path to config file")
+    parser.add_argument(
+        "--config", default="configs/pipeline_params.yaml", help="Path to config file"
+    )
     args = parser.parse_args()
 
     pipeline = PredictionPipeline(config_path=args.config)

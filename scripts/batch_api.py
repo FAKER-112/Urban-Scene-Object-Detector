@@ -1,3 +1,26 @@
+"""
+This module implements a FastAPI-based REST API for batch object detection.
+
+Key functionalities include:
+1. Batch Inference Endpoint (`/predict/batch`): Accepts multiple image/video file
+   uploads for concurrent processing.
+2. Configuration Overrides: Supports dynamic confidence threshold and device
+   (CPU/CUDA) selection via query parameters.
+3. Result Delivery: Returns aggregated batch metrics and detailed per-file results,
+   including Base64-encoded strings of the annotated output images for direct
+   frontend integration.
+4. Error Handling: Provides robust error tracking for failed individual inferences
+   within a batch.
+
+The API serves as a scalable interface for the underlying detection pipelines,
+designed for integration with web dashboards or remote client applications.
+
+Usage:
+    python scripts/batch_api.py
+    # or
+    uvicorn scripts.batch_api:app --host 0.0.0.0 --port 8000
+"""
+
 # batch_api.py
 import os
 import sys
@@ -31,6 +54,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class FileMetrics(BaseModel):
     filename: str
     total_detections: Optional[int] = None
@@ -42,15 +66,19 @@ class FileMetrics(BaseModel):
     raw: Optional[dict] = None
     output_image_base64: Optional[str] = None  # <-- ADD THIS FIELD
 
+
 class BatchResponse(BaseModel):
     batch_metrics: dict
     details: List[FileMetrics]
 
+
 @app.post("/predict/batch", response_model=BatchResponse)
 async def predict_batch(
     files: List[UploadFile] = File(...),
-    conf_threshold: float = Query(None, description="Optional confidence threshold to override config"),
-    device: str = Query(None, description="Optional device override, e.g. cpu or cuda")
+    conf_threshold: float = Query(
+        None, description="Optional confidence threshold to override config"
+    ),
+    device: str = Query(None, description="Optional device override, e.g. cpu or cuda"),
 ):
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
@@ -71,9 +99,11 @@ async def predict_batch(
                 original_filenames[dest] = name  # Store original name
             except Exception as e:
                 logger.error(f"Failed to save upload {name}: {e}")
-        
+
         if not saved_paths:
-            raise HTTPException(status_code=400, detail="No files could be saved for inference")
+            raise HTTPException(
+                status_code=400, detail="No files could be saved for inference"
+            )
 
         pipeline = InferencePipeline(
             config_path="configs/pipeline_params.yaml",
@@ -91,49 +121,61 @@ async def predict_batch(
         details = []
         for m in metrics_list:
             if isinstance(m, dict) and m.get("error"):
-                details.append(FileMetrics(
-                    filename=os.path.basename(m.get("file", "unknown")),
-                    error=m.get("error"),
-                    raw=m
-                ))
+                details.append(
+                    FileMetrics(
+                        filename=os.path.basename(m.get("file", "unknown")),
+                        error=m.get("error"),
+                        raw=m,
+                    )
+                )
                 continue
 
             # This is the original filename
             filename = os.path.basename(m.get("input_source", "unknown"))
-            
+
             # --- START: Base64 Encoding Logic ---
             output_image_base64 = None
-            output_dir = m.get("output_dir") # This is relative, e.g., 'runs\detect\...'
+            output_dir = m.get(
+                "output_dir"
+            )  # This is relative, e.g., 'runs\detect\...'
 
             if output_dir:
                 try:
                     # 'output_dir' is relative to the CWD. os.path.abspath resolves this.
                     output_dir_absolute = os.path.abspath(output_dir)
-                    
+
                     # Use the original filename to find the output image
                     output_image_path = os.path.join(output_dir_absolute, filename)
-                    
-                    logger.info(f"Batch: Attempting to read output image from: {output_image_path}")
+
+                    logger.info(
+                        f"Batch: Attempting to read output image from: {output_image_path}"
+                    )
                     if os.path.exists(output_image_path):
                         with open(output_image_path, "rb") as img_file:
-                            output_image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+                            output_image_base64 = base64.b64encode(
+                                img_file.read()
+                            ).decode("utf-8")
                         logger.info(f"Batch: Successfully encoded image: {filename}")
                     else:
-                        logger.warning(f"Batch: Output image NOT FOUND at: {output_image_path}")
+                        logger.warning(
+                            f"Batch: Output image NOT FOUND at: {output_image_path}"
+                        )
                 except Exception as e:
                     logger.error(f"Batch: Failed to read/encode image {filename}: {e}")
             # --- END: Base64 Encoding Logic ---
 
-            details.append(FileMetrics(
-                filename=filename,
-                total_detections=m.get("total_detections"),
-                avg_confidence=m.get("avg_confidence"),
-                output_dir=m.get("output_dir"),
-                is_video=m.get("is_video"),
-                total_time_sec=m.get("total_time_sec"),
-                raw=m,
-                output_image_base64=output_image_base64  # <-- ADD THE ENCODED STRING
-            ))
+            details.append(
+                FileMetrics(
+                    filename=filename,
+                    total_detections=m.get("total_detections"),
+                    avg_confidence=m.get("avg_confidence"),
+                    output_dir=m.get("output_dir"),
+                    is_video=m.get("is_video"),
+                    total_time_sec=m.get("total_time_sec"),
+                    raw=m,
+                    output_image_base64=output_image_base64,  # <-- ADD THE ENCODED STRING
+                )
+            )
 
         return BatchResponse(batch_metrics=batch_metrics, details=details)
 
@@ -149,6 +191,7 @@ async def predict_batch(
         # If your pipeline *does* save to tmp_output_dir, you can clean it too
         shutil.rmtree(tmp_output_dir, ignore_errors=True)
         pass
+
 
 if __name__ == "__main__":
     uvicorn.run("batch_api:app", host="0.0.0.0", port=8000, reload=True)

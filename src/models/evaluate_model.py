@@ -1,3 +1,20 @@
+"""
+This module provides functions for evaluating trained YOLOv8 models, specifically
+generating detailed performance reports and logging metrics to MLflow.
+
+The module supports two main evaluation paths:
+1. Active Evaluation (EvaluateModel - commented): Loads a trained model and runs
+   validation on a specified dataset to compute mAP and generate sample predictions.
+2. Result-based Reporting (evaluate_existing_results): Parses existing YOLO training
+   outputs (results.csv, confusion matrices, etc.) to generate a comprehensive
+   Markdown report (`evaluate.md`) and syncs these results to MLflow for experiment tracking.
+
+Key features include:
+- Quantitative analysis of final epoch metrics.
+- Visual reporting including confusion matrices and precision-recall curves.
+- Integration with MLflow for long-term tracking of model performance.
+"""
+
 import os
 import sys
 import mlflow
@@ -7,7 +24,10 @@ import glob
 import yaml
 import pandas as pd
 import numpy as np
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(project_root)
 from ultralytics import YOLO
 from datetime import datetime
@@ -95,21 +115,24 @@ from src.utils.exception import CustomException
 # if __name__ == "__main__":
 #     EvaluateModel()
 
+
 def evaluate_existing_results():
     """
     Generate an evaluation summary (evaluate.md) using YOLO's existing output files.
     """
     try:
         # Load config
-        config = load_config('configs/model_params.yaml')
-        cfg = config.get('EvaluateModelConfig', {})
+        config = load_config("configs/model_params.yaml")
+        cfg = config.get("EvaluateModelConfig", {})
 
-        TRAIN_DIR = cfg.get('TRAIN_DIR', 'artifacts/models/runs/detect/train')
-        EVAL_REPORT_PATH = cfg.get('EVAL_REPORT_PATH', os.path.join(TRAIN_DIR, "evaluate.md"))
+        TRAIN_DIR = cfg.get("TRAIN_DIR", "artifacts/models/runs/detect/train")
+        EVAL_REPORT_PATH = cfg.get(
+            "EVAL_REPORT_PATH", os.path.join(TRAIN_DIR, "evaluate.md")
+        )
 
         results_csv = os.path.join(TRAIN_DIR, "results.csv")
         metrics_txt = os.path.join(TRAIN_DIR, "results.txt")
-         # visuals
+        # visuals
         confusion_matrix_path = os.path.join(TRAIN_DIR, "confusion_matrix.png")
         pr_curve_path = os.path.join(TRAIN_DIR, "PR_curve.png")
         val_images = sorted(glob.glob(os.path.join(TRAIN_DIR, "val_batch*.jpg")))
@@ -127,12 +150,16 @@ def evaluate_existing_results():
         # Create Markdown report
         with open(EVAL_REPORT_PATH, "w", encoding="utf-8") as f:
             f.write("# 🧠 Model Evaluation Report\n\n")
-            f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(
+                f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            )
             f.write(f"**Evaluation Source:** `{TRAIN_DIR}`\n\n")
 
             f.write("## 📊 Final Epoch Metrics\n")
             for key, value in final_metrics.items():
-                f.write(f"- **{key}**: {round(value, 4) if isinstance(value, (float, int)) else value}\n")
+                f.write(
+                    f"- **{key}**: {round(value, 4) if isinstance(value, (float, int)) else value}\n"
+                )
 
             if os.path.exists(metrics_txt):
                 f.write("\n## 📄 YOLO Summary\n")
@@ -155,24 +182,28 @@ def evaluate_existing_results():
                 for img_path in val_images:
                     f.write(f"![{os.path.basename(img_path)}]({img_path})\n\n")
 
-            f.write("\n## 🔍 Insights\n")
-            f.write("- Model performance measured using mAP@[.5:.95] and mAP@.5.\n")
-            f.write("- Use confusion matrix to identify misclassifications.\n")
-            f.write("- Check PR curve for class-wise precision/recall balance.\n")
+            # f.write("\n## Insights\n")
+            # f.write("- Model performance measured using mAP@[.5:.95] and mAP@.5.\n")
+            # f.write("- Use confusion matrix to identify misclassifications.\n")
+            # f.write("- Check PR curve for class-wise precision/recall balance.\n")
 
-            f.write("\n## 💡 Suggested Improvements\n")
-            f.write("- Increase dataset diversity or use class-balanced sampling.\n")
-            f.write("- Experiment with longer training or image augmentations.\n")
-            f.write("- Fine-tune on small-object subsets for better pedestrian detection.\n")
+            # f.write("\n##  Suggested Improvements\n")
+            # f.write("- Increase dataset diversity or use class-balanced sampling.\n")
+            # f.write("- Experiment with longer training or image augmentations.\n")
+            # f.write(
+            #     "- Fine-tune on small-object subsets for better pedestrian detection.\n"
+            # )
 
         logger.info(f"Evaluation report generated at {EVAL_REPORT_PATH}")
 
         # Optional: log to MLflow
         mlflow.set_experiment("YOLOv8_Object_Detection_Evaluation")
-        with mlflow.start_run(run_name=f"Eval_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+        with mlflow.start_run(
+            run_name=f"Eval_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        ):
             for k, v in final_metrics.items():
                 if isinstance(v, (int, float)):
-                    safe_key = re.sub(r'[^a-zA-Z0-9_\-./ ]', '_', k)
+                    safe_key = re.sub(r"[^a-zA-Z0-9_\-./ ]", "_", k)
                     mlflow.log_metric(safe_key, v)
             mlflow.log_artifact(EVAL_REPORT_PATH)
             if os.path.exists(confusion_matrix_path):
@@ -182,7 +213,7 @@ def evaluate_existing_results():
 
     except Exception as e:
         logger.error(f"Evaluation summary generation failed: {e}")
-        raise CustomException(e,sys)
+        raise CustomException(e, sys)
 
 
 if __name__ == "__main__":

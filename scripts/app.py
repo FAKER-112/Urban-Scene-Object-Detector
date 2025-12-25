@@ -1,3 +1,19 @@
+"""
+This module serves as the main entry point for the YOLOv8 Hyperion Streamlit web interface.
+
+The application provides a user-friendly GUI for:
+1. Single File Detection: Uploading and analyzing individual images or videos with real-time feedback and metrics.
+2. Batch Processing: Uploading multiple files for parallelized inference, providing aggregated performance statistics.
+3. Visualization: Interactive display of annotated results directly within the browser.
+4. Error Handling: Includes fallback dummy pipelines for UI testing and deployment verification.
+
+The interface is styled for a premium look and integrates with the underlying
+prediction and batch inference pipelines.
+
+Usage:
+    streamlit run scripts/app.py
+"""
+
 import os
 import sys
 import glob
@@ -24,69 +40,80 @@ try:
     from src.utils.exception import CustomException
 except ImportError as e:
     print(f"Warning: Could not import custom modules: {e}. Using dummy pipelines.")
-    
-    class CustomException(Exception): pass
+
+    class CustomException(Exception):
+        pass
 
     class PredictionPipeline:
         """Dummy PredictionPipeline for UI testing."""
+
         def __init__(self):
             self.working = True
             print("Warning: Dummy PredictionPipeline loaded.")
+
         def predict(self, filename):
             print(f"Dummy predict called for: {filename}")
             # Simulate creating an output file
             output_dir = tempfile.mkdtemp(prefix="single_out_")
             output_path = os.path.join(output_dir, os.path.basename(filename))
             shutil.copy2(filename, output_path)
-            
+
             return {
-                'total_detections': 10,
-                'avg_confidence': 0.88,
-                'total_time_sec': 1.23,
-                'output_dir': output_dir,
-                'is_video': os.path.splitext(filename)[1].lower() in SUPPORTED_VIDEO_EXT,
-                'model_path': 'dummy/model.pt',
-                'detection_summary': [{
-                    'image': os.path.basename(filename),
-                    'num_detections': 10,
-                    'avg_confidence': 0.88
-                }]
+                "total_detections": 10,
+                "avg_confidence": 0.88,
+                "total_time_sec": 1.23,
+                "output_dir": output_dir,
+                "is_video": os.path.splitext(filename)[1].lower()
+                in SUPPORTED_VIDEO_EXT,
+                "model_path": "dummy/model.pt",
+                "detection_summary": [
+                    {
+                        "image": os.path.basename(filename),
+                        "num_detections": 10,
+                        "avg_confidence": 0.88,
+                    }
+                ],
             }
 
     class InferencePipeline:
         """Dummy InferencePipeline for UI testing."""
+
         def __init__(self):
             self.input_dir = None
             self.output_dir = tempfile.mkdtemp(prefix="batch_out_")
             self.working = True
             print("Warning: Dummy InferencePipeline loaded.")
-        
+
         def run(self):
             print(f"Dummy batch run called for input dir: {self.input_dir}")
             if not self.input_dir or not os.path.exists(self.input_dir):
                 raise CustomException("Input directory not set or does not exist.")
-            
+
             files = glob.glob(os.path.join(self.input_dir, "*.*"))
             for f in files:
                 shutil.copy2(f, os.path.join(self.output_dir, os.path.basename(f)))
-                
+
             return {
-                'total_files': len(files),
-                'successful_inferences': len(files),
-                'failed_inferences': 0,
-                'total_detections': len(files) * 5,
-                'avg_confidence': 0.75,
-                'total_runtime_sec': 5.67,
-                'device': 'cpu (dummy)',
+                "total_files": len(files),
+                "successful_inferences": len(files),
+                "failed_inferences": 0,
+                "total_detections": len(files) * 5,
+                "avg_confidence": 0.75,
+                "total_runtime_sec": 5.67,
+                "device": "cpu (dummy)",
             }
 
-    logger = type('Logger', (object,), {'info': print, 'error': print, 'warning': print, 'debug': print})()
+    logger = type(
+        "Logger",
+        (object,),
+        {"info": print, "error": print, "warning": print, "debug": print},
+    )()
 
 
 # --- Constants & Configuration ---
 
-SUPPORTED_IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp']
-SUPPORTED_VIDEO_EXT = ['.mp4', '.avi', '.mov', '.mkv']
+SUPPORTED_IMAGE_EXT = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"]
+SUPPORTED_VIDEO_EXT = [".mp4", ".avi", ".mov", ".mkv"]
 
 # --- CSS for Futuristic Look (Header Only) ---
 CUSTOM_CSS = """
@@ -137,6 +164,7 @@ code {
 </style>
 """
 
+
 # --- Pipeline Initialization ---
 @st.cache_resource
 def load_pipelines():
@@ -157,27 +185,32 @@ def load_pipelines():
         infer_pipe = None
     return pred_pipe, infer_pipe
 
+
 prediction_pipeline, inference_pipeline = load_pipelines()
 
 # --- Helper Functions ---
+
 
 def save_uploaded_file(uploaded_file):
     """Saves an UploadedFile to a temporary path and returns the path."""
     try:
         # Use a named temporary file that persists
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=os.path.splitext(uploaded_file.name)[1]
+        ) as tmp_file:
             tmp_file.write(uploaded_file.getvalue())
             return tmp_file.name
     except Exception as e:
         logger.error(f"Error saving uploaded file: {e}")
         return None
 
+
 def find_output_file(output_dir, original_filename):
     """Find the output file in the prediction directory."""
     if not output_dir or not os.path.exists(output_dir):
         logger.warning(f"Output directory not found: {output_dir}")
         return None
-    
+
     base_name = os.path.splitext(os.path.basename(original_filename))[0]
     logger.debug(f"Searching for output file based on base_name: {base_name}")
 
@@ -189,26 +222,33 @@ def find_output_file(output_dir, original_filename):
         return files[0]
 
     # Fallback: Find the most recent file in the directory
-    logger.warning(f"Could not find specific match for {base_name}. "
-                   f"Falling back to most recent file in {output_dir}")
-    all_files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) 
-                 if os.path.isfile(os.path.join(output_dir, f))]
+    logger.warning(
+        f"Could not find specific match for {base_name}. "
+        f"Falling back to most recent file in {output_dir}"
+    )
+    all_files = [
+        os.path.join(output_dir, f)
+        for f in os.listdir(output_dir)
+        if os.path.isfile(os.path.join(output_dir, f))
+    ]
     if not all_files:
         logger.error(f"No files found in output directory: {output_dir}")
         return None
-    
+
     latest_file = max(all_files, key=os.path.getctime)
     logger.info(f"Found latest file as fallback: {latest_file}")
     return latest_file
+
 
 def format_single_metrics(metrics_data):
     """Formats single detection metrics into a Markdown string."""
     metrics_md = "## ✅ Analysis Complete\n\n"
     metrics_md += "| Metric | Value |\n| --- | --- |\n"
     for key, val in metrics_data.items():
-        if key == "Detection Summary": continue
+        if key == "Detection Summary":
+            continue
         metrics_md += f"| {key} | `{val}` |\n"
-        
+
     if metrics_data.get("Detection Summary"):
         metrics_md += "\n### 📋 Detection Summary\n"
         for item in metrics_data["Detection Summary"]:
@@ -219,45 +259,57 @@ def format_single_metrics(metrics_data):
             )
     return metrics_md
 
+
 def format_batch_metrics(metrics_data):
     """Formats batch detection metrics into a Markdown string."""
     metrics_md = "## ✅ Batch Processing Complete\n\n"
     metrics_md += "| Metric | Value |\n| --- | --- |\n"
     for key, val in metrics_data.items():
         metrics_md += f"| {key} | `{val}` |\n"
-    
+
     metrics_md += f"\n### 📂 Output Location\n"
     metrics_md += f"Results saved to: `{metrics_data.get('Output Directory', 'N/A')}`\n"
-    metrics_md += f"\nCheck the output directory for all annotated files and detailed metrics."
+    metrics_md += (
+        f"\nCheck the output directory for all annotated files and detailed metrics."
+    )
     return metrics_md
+
 
 # --- SINGLE FILE PREDICTION LOGIC ---
 def run_single_detection(input_filepath):
     """Single file detection logic."""
     if prediction_pipeline is None:
-        return None, None, "Single prediction pipeline is not initialized. Please check server logs."
-    
+        return (
+            None,
+            None,
+            "Single prediction pipeline is not initialized. Please check server logs.",
+        )
+
     try:
         logger.info(f"Processing single file: {input_filepath}")
         result = prediction_pipeline.predict(filename=input_filepath)
         logger.info(f"Prediction result: {result}")
-        
-        output_dir = result.get('output_dir')
+
+        output_dir = result.get("output_dir")
         output_path = find_output_file(output_dir, input_filepath)
 
         if not output_path or not os.path.exists(output_path):
-            return None, None, f"Detection completed but output file was not found in {output_dir}."
+            return (
+                None,
+                None,
+                f"Detection completed but output file was not found in {output_dir}.",
+            )
 
         metrics_dict = {
-            "Total Detections": result.get('total_detections', 0),
+            "Total Detections": result.get("total_detections", 0),
             "Avg. Confidence": f"{result.get('avg_confidence', 0.0):.3f}",
             "Processing Time (s)": f"{result.get('total_time_sec', 0.0):.3f}",
-            "Media Type": "Video" if result.get('is_video', False) else "Image",
-            "Model Path": result.get('model_path', 'N/A'),
+            "Media Type": "Video" if result.get("is_video", False) else "Image",
+            "Model Path": result.get("model_path", "N/A"),
             "Output Directory": output_dir,
-            "Detection Summary": result.get('detection_summary', [])
+            "Detection Summary": result.get("detection_summary", []),
         }
-        
+
         logger.info(f"Successfully processed single file. Output: {output_path}")
         return output_path, metrics_dict, None
     except Exception as e:
@@ -265,69 +317,79 @@ def run_single_detection(input_filepath):
         logger.error(traceback.format_exc())
         return None, None, f"An unexpected server error occurred: {str(e)}"
 
+
 # --- BATCH PREDICTION LOGIC ---
 # --- BATCH PREDICTION LOGIC ---
 def run_batch_detection(input_filepaths, progress_bar):
     """Batch processing logic."""
     if inference_pipeline is None:
-        return None, None, "Batch inference pipeline is not initialized. Please check server logs."
-    
+        return (
+            None,
+            None,
+            "Batch inference pipeline is not initialized. Please check server logs.",
+        )
+
     temp_dir = None
     try:
         temp_dir = tempfile.mkdtemp(prefix="batch_inference_")
         logger.info(f"Created temporary directory: {temp_dir}")
-        
+
         progress_bar.progress(0.1, text="Copying files...")
         for i, file_path in enumerate(input_filepaths):
             dest_path = os.path.join(temp_dir, os.path.basename(file_path))
             shutil.copy2(file_path, dest_path)
-        
+
         logger.info(f"Processing {len(input_filepaths)} files in batch mode")
-        
+
         original_input_dir = inference_pipeline.input_dir
         inference_pipeline.input_dir = temp_dir
-        
+
         progress_bar.progress(0.3, text="Running batch inference...")
         # 1. Capture both batch metrics and the detailed list of results
-        batch_metrics, metrics_list = inference_pipeline.run() 
-        
+        batch_metrics, metrics_list = inference_pipeline.run()
+
         inference_pipeline.input_dir = original_input_dir
-        
+
         progress_bar.progress(0.8, text="Locating output files...")
 
         # 2. Find the actual output paths for each successful result
         output_files_details = []
         for item in metrics_list:
             if "error" not in item:
-                output_dir = item.get('output_dir')
+                output_dir = item.get("output_dir")
                 # 'input_source' key holds the path to the *input* file in temp_dir
-                original_input_path = item.get('input_source') # <-- CORRECTION HERE
-                
+                original_input_path = item.get("input_source")  # <-- CORRECTION HERE
+
                 if output_dir and original_input_path:
                     output_path = find_output_file(output_dir, original_input_path)
                     if output_path and os.path.exists(output_path):
-                        output_files_details.append({
-                            "original_name": os.path.basename(original_input_path),
-                            "output_path": output_path,
-                            # Check if it's an image or video based on the *output* path
-                            "is_image": os.path.splitext(output_path)[1].lower() in SUPPORTED_IMAGE_EXT
-                        })
+                        output_files_details.append(
+                            {
+                                "original_name": os.path.basename(original_input_path),
+                                "output_path": output_path,
+                                # Check if it's an image or video based on the *output* path
+                                "is_image": os.path.splitext(output_path)[1].lower()
+                                in SUPPORTED_IMAGE_EXT,
+                            }
+                        )
                     else:
-                        logger.warning(f"Could not find output file for {original_input_path} in {output_dir}")
-        
+                        logger.warning(
+                            f"Could not find output file for {original_input_path} in {output_dir}"
+                        )
+
         progress_bar.progress(1.0, text="Complete!")
-        
+
         metrics_dict = {
-            "Total Files": batch_metrics.get('total_files', 0),
-            "Successful": batch_metrics.get('successful_inferences', 0),
-            "Failed": batch_metrics.get('failed_inferences', 0),
-            "Total Detections": batch_metrics.get('total_detections', 0),
+            "Total Files": batch_metrics.get("total_files", 0),
+            "Successful": batch_metrics.get("successful_inferences", 0),
+            "Failed": batch_metrics.get("failed_inferences", 0),
+            "Total Detections": batch_metrics.get("total_detections", 0),
             "Avg. Confidence": f"{batch_metrics.get('avg_confidence', 0.0):.3f}",
             "Total Runtime (s)": f"{batch_metrics.get('total_runtime_sec', 0.0):.3f}",
-            "Device": batch_metrics.get('device', 'N/A'),
+            "Device": batch_metrics.get("device", "N/A"),
             "Output Directory": inference_pipeline.output_dir,
         }
-        
+
         # 3. Return metrics AND the list of output file details
         return metrics_dict, output_files_details, None
     except Exception as e:
@@ -341,25 +403,28 @@ def run_batch_detection(input_filepaths, progress_bar):
                 logger.info(f"Cleaned up temporary directory: {temp_dir}")
             except Exception as e:
                 logger.warning(f"Failed to clean up temp directory: {e}")
-                
-                                
+
+
 # --- Main Streamlit App ---
+
 
 def main():
     st.set_page_config(
-        page_title="YOLOv8 Hyperion Interface",
-        page_icon="🛰️",
-        layout="wide"
+        page_title="YOLOv8 Hyperion Interface", page_icon="🛰️", layout="wide"
     )
-    
+
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     # Initialize session state variables
-    if 'single_result' not in st.session_state:
-        st.session_state.single_result = {'path': None, 'metrics': None, 'error': None}
-    if 'batch_result' not in st.session_state:
-        st.session_state.batch_result = {'metrics': None, 'details': None, 'error': None}
-    
+    if "single_result" not in st.session_state:
+        st.session_state.single_result = {"path": None, "metrics": None, "error": None}
+    if "batch_result" not in st.session_state:
+        st.session_state.batch_result = {
+            "metrics": None,
+            "details": None,
+            "error": None,
+        }
+
     # --- Header ---
     st.markdown(
         """
@@ -370,7 +435,7 @@ def main():
             </p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     tab1, tab2 = st.tabs(["🖼️ Single File Detection", "📦 Batch Processing"])
@@ -378,19 +443,24 @@ def main():
     # --- SINGLE FILE TAB ---
     with tab1:
         col1, col2 = st.columns([1, 2])
-        
+
         with col1:
-            st.markdown("<h3 class='section-header'>1. Upload Media</h3>", unsafe_allow_html=True)
-            
+            st.markdown(
+                "<h3 class='section-header'>1. Upload Media</h3>",
+                unsafe_allow_html=True,
+            )
+
             single_input = st.file_uploader(
                 "Upload Image or Video",
                 type=SUPPORTED_IMAGE_EXT + SUPPORTED_VIDEO_EXT,
                 accept_multiple_files=False,
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
-            
-            single_detect_btn = st.button("🚀 Run Detection", use_container_width=True, type="primary")
-            
+
+            single_detect_btn = st.button(
+                "🚀 Run Detection", use_container_width=True, type="primary"
+            )
+
             st.markdown(
                 """
                 #### 📁 Supported Formats
@@ -403,63 +473,86 @@ def main():
             )
 
         with col2:
-            st.markdown("<h3 class='section-header'>2. Analysis & Results</h3>", unsafe_allow_html=True)
-            
+            st.markdown(
+                "<h3 class='section-header'>2. Analysis & Results</h3>",
+                unsafe_allow_html=True,
+            )
+
             if single_detect_btn and single_input:
                 temp_path = save_uploaded_file(single_input)
                 if temp_path:
                     with st.spinner("Processing..."):
                         path, metrics, error = run_single_detection(temp_path)
-                        st.session_state.single_result = {'path': path, 'metrics': metrics, 'error': error}
-                    
+                        st.session_state.single_result = {
+                            "path": path,
+                            "metrics": metrics,
+                            "error": error,
+                        }
+
                     if os.path.exists(temp_path):
-                        os.unlink(temp_path) # Clean up temp input file
-            
+                        os.unlink(temp_path)  # Clean up temp input file
+
             # Display results from session state
             result = st.session_state.single_result
-            if result['error']:
+            if result["error"]:
                 st.error(f"**Error:** {result['error']}")
-            elif result['path']:
-                is_image = os.path.splitext(result['path'])[1].lower() in SUPPORTED_IMAGE_EXT
+            elif result["path"]:
+                is_image = (
+                    os.path.splitext(result["path"])[1].lower() in SUPPORTED_IMAGE_EXT
+                )
                 if is_image:
-                    st.image(result['path'], caption="Detection Result", use_column_width=True)
+                    st.image(
+                        result["path"],
+                        caption="Detection Result",
+                        use_column_width=True,
+                    )
                 else:
-                    st.video(result['path'])
-                
-                st.markdown("<h3 class='section-header'>3. Download & Metrics</h3>", unsafe_allow_html=True)
-                
+                    st.video(result["path"])
+
+                st.markdown(
+                    "<h3 class='section-header'>3. Download & Metrics</h3>",
+                    unsafe_allow_html=True,
+                )
+
                 try:
-                    with open(result['path'], "rb") as f:
+                    with open(result["path"], "rb") as f:
                         st.download_button(
                             "⬇️ Download Annotated File",
                             data=f,
-                            file_name=os.path.basename(result['path']),
-                            use_container_width=True
+                            file_name=os.path.basename(result["path"]),
+                            use_container_width=True,
                         )
                 except Exception as e:
                     st.warning(f"Could not read output file for download: {e}")
-                
-                st.markdown(format_single_metrics(result['metrics']), unsafe_allow_html=True)
-                
+
+                st.markdown(
+                    format_single_metrics(result["metrics"]), unsafe_allow_html=True
+                )
+
             else:
                 st.info("Upload a file and click 'Run Detection' to see results here.")
-    
+
     # --- BATCH PROCESSING TAB ---
     with tab2:
         col1, col2 = st.columns([1, 2])
-        
+
         with col1:
-            st.markdown("<h3 class='section-header'>1. Upload Multiple Files</h3>", unsafe_allow_html=True)
-            
+            st.markdown(
+                "<h3 class='section-header'>1. Upload Multiple Files</h3>",
+                unsafe_allow_html=True,
+            )
+
             batch_input = st.file_uploader(
                 "Upload Images/Videos (Multiple)",
                 type=SUPPORTED_IMAGE_EXT + SUPPORTED_VIDEO_EXT,
                 accept_multiple_files=True,
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
-            
-            batch_detect_btn = st.button("🚀 Run Batch Detection", use_container_width=True, type="primary")
-            
+
+            batch_detect_btn = st.button(
+                "🚀 Run Batch Detection", use_container_width=True, type="primary"
+            )
+
             st.markdown(
                 """
                 #### 📁 Batch Processing
@@ -475,7 +568,10 @@ def main():
             )
 
         with col2:
-            st.markdown("<h3 class='section-header'>2. Batch Results</h3>", unsafe_allow_html=True)
+            st.markdown(
+                "<h3 class='section-header'>2. Batch Results</h3>",
+                unsafe_allow_html=True,
+            )
 
             if batch_detect_btn and batch_input:
                 temp_paths = [save_uploaded_file(f) for f in batch_input]
@@ -483,35 +579,48 @@ def main():
 
                 if temp_paths:
                     progress_bar = st.progress(0, text="Starting batch...")
-                    metrics, details, error = run_batch_detection(temp_paths, progress_bar)
-                    st.session_state.batch_result = {'metrics': metrics, 'details': details, 'error': error}
+                    metrics, details, error = run_batch_detection(
+                        temp_paths, progress_bar
+                    )
+                    st.session_state.batch_result = {
+                        "metrics": metrics,
+                        "details": details,
+                        "error": error,
+                    }
 
                     for p in temp_paths:
                         if os.path.exists(p):
                             os.unlink(p)
                 else:
                     st.session_state.batch_result = {
-                        'metrics': None,
-                        'details': None,
-                        'error': "Failed to save uploaded files for processing."
+                        "metrics": None,
+                        "details": None,
+                        "error": "Failed to save uploaded files for processing.",
                     }
 
             result = st.session_state.batch_result
 
-            if result['error']:
+            if result["error"]:
                 st.error(f"**Error:** {result['error']}")
-            elif result['metrics']:
-                st.markdown(format_batch_metrics(result['metrics']), unsafe_allow_html=True)
-                st.markdown("<h3 class='section-header'>3. Annotated Files</h3>", unsafe_allow_html=True)
+            elif result["metrics"]:
+                st.markdown(
+                    format_batch_metrics(result["metrics"]), unsafe_allow_html=True
+                )
+                st.markdown(
+                    "<h3 class='section-header'>3. Annotated Files</h3>",
+                    unsafe_allow_html=True,
+                )
 
-                if result['details'] and len(result['details']) > 0:
-                    st.info(f"Showing results for {len(result['details'])} successfully processed files.")
+                if result["details"] and len(result["details"]) > 0:
+                    st.info(
+                        f"Showing results for {len(result['details'])} successfully processed files."
+                    )
 
-                    for item in result['details']:
+                    for item in result["details"]:
                         st.subheader(f"📄 {item['original_name']}")
-                        file_path = item['output_path']
+                        file_path = item["output_path"]
 
-                        if item['is_image']:
+                        if item["is_image"]:
                             st.image(file_path, use_column_width=True)
                         else:
                             st.video(file_path)
@@ -522,30 +631,37 @@ def main():
                                     f"⬇️ Download {item['original_name']}",
                                     data=f.read(),
                                     file_name=os.path.basename(file_path),
-                                    use_container_width=True
+                                    use_container_width=True,
                                 )
                         except Exception as e:
                             st.warning(f"Could not read file for download: {e}")
 
                         st.divider()
-                elif result['metrics'].get('Successful', 0) > 0:
-                    st.warning("Batch completed, but no output files could be located for display. Please check the output directory.")
+                elif result["metrics"].get("Successful", 0) > 0:
+                    st.warning(
+                        "Batch completed, but no output files could be located for display. Please check the output directory."
+                    )
             else:
-                st.info("Upload files and click 'Run Batch Detection' to see results here.")
+                st.info(
+                    "Upload files and click 'Run Batch Detection' to see results here."
+                )
+
 
 if __name__ == "__main__":
     if prediction_pipeline is None and inference_pipeline is None:
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("❌ FATAL: Could not launch app because both pipelines failed to load.")
         print("Please check the logs above for errors.")
-        print("="*50 + "\n")
+        print("=" * 50 + "\n")
         st.error("FATAL: Both pipelines failed to load. Check server logs.")
     else:
         status = []
-        if prediction_pipeline: status.append("Single file detection ✅")
-        if inference_pipeline: status.append("Batch processing ✅")
-        print("\n" + "="*50)
+        if prediction_pipeline:
+            status.append("Single file detection ✅")
+        if inference_pipeline:
+            status.append("Batch processing ✅")
+        print("\n" + "=" * 50)
         print("✅ App is ready to launch!")
         print(f"Available modes: {', '.join(status)}")
-        print("="*50 + "\n")
+        print("=" * 50 + "\n")
         main()

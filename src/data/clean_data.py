@@ -1,8 +1,26 @@
-import os   
+"""
+This module contains the CleanDataService class, which focuses on filtering
+and preprocessing COCO-formatted annotations for urban scene object detection.
+
+Key functionalities include:
+- Filtering initial annotations to only retain specified target classes (e.g., traffic-related objects).
+- Reindexing category IDs to maintain consistency across the filtered dataset.
+- Generating a "minimal" JSON version of the annotations containing only essential data
+  (image info, bounding boxes, and category mappings) to optimize downstream processing.
+- Ensuring the directory structure for cleaned and minimal annotation outputs is maintained.
+
+The service uses COCO API (pycocotools) to manage the dataset structure and logs
+processing statistics for traceability.
+"""
+
+import os
 import sys
 import json
 import argparse
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(project_root)
 from pathlib import Path
 from pycocotools.coco import COCO
@@ -21,9 +39,15 @@ class CleanDataService:
 
             cfg = self.config.get("CleanDataConfig", {})
             self.src_path = Path(cfg.get("src_ann_dir", "data/raw/annotations.json"))
-            self.dest_path = Path(cfg.get("dest_ann_dir", "data/processed/annotation_filtered..json"))
-            self.min_path = Path(cfg.get("min_ann_dir", "data/raw/urban_scene_images/annotation_minimal.json"))
-            self.target_classes =  cfg.get("target_classes", [])
+            self.dest_path = Path(
+                cfg.get("dest_ann_dir", "data/processed/annotation_filtered..json")
+            )
+            self.min_path = Path(
+                cfg.get(
+                    "min_ann_dir", "data/raw/urban_scene_images/annotation_minimal.json"
+                )
+            )
+            self.target_classes = cfg.get("target_classes", [])
 
         except Exception as e:
             raise CustomException(e, sys)
@@ -54,9 +78,19 @@ class CleanDataService:
             filtered = {
                 "info": coco.dataset.get("info", {}),
                 "licenses": coco.dataset.get("licenses", []),
-                "images": [img for img in coco.dataset["images"] if img["id"] in target_img_ids],
-                "annotations": [ann for ann in coco.dataset["annotations"] if ann["category_id"] in target_cat_ids],
-                "categories": [cat for cat in coco.dataset["categories"] if cat["id"] in target_cat_ids],
+                "images": [
+                    img for img in coco.dataset["images"] if img["id"] in target_img_ids
+                ],
+                "annotations": [
+                    ann
+                    for ann in coco.dataset["annotations"]
+                    if ann["category_id"] in target_cat_ids
+                ],
+                "categories": [
+                    cat
+                    for cat in coco.dataset["categories"]
+                    if cat["id"] in target_cat_ids
+                ],
             }
 
             # Reindex category IDs
@@ -80,10 +114,11 @@ class CleanDataService:
 
         except Exception as e:
             raise CustomException(e, sys)
-    def _minimal_json(self)-> None:
+
+    def _minimal_json(self) -> None:
         """Create a minimal JSON with only image IDs and file names."""
         try:
-        
+
             # Load file
             with open(self.dest_path, "r") as f:
                 data = json.load(f)
@@ -95,7 +130,7 @@ class CleanDataService:
                     {k: ann[k] for k in ["bbox", "category_id", "image_id", "id"]}
                     for ann in data["annotations"]
                 ],
-                "categories": data["categories"]
+                "categories": data["categories"],
             }
 
             # Save cleaned version
@@ -103,14 +138,18 @@ class CleanDataService:
                 json.dump(cleaned, f)
 
             self.logger.info(f"Saved cleaned annotation file: {self.min_path}")
-            self.logger.info(f"Images: {len(cleaned['images'])}, Annotations: {len(cleaned['annotations'])}")
+            self.logger.info(
+                f"Images: {len(cleaned['images'])}, Annotations: {len(cleaned['annotations'])}"
+            )
 
         except Exception as e:
             raise CustomException(e, sys)
-        
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Clean COCO annotations for urban scene detection.")
+    parser = argparse.ArgumentParser(
+        description="Clean COCO annotations for urban scene detection."
+    )
     parser.add_argument("--config", type=str, default="configs/config.yaml")
     args = parser.parse_args()
 
