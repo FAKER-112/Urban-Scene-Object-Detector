@@ -208,3 +208,6 @@ __marimo__/
 # junks
 runs/detect/
 mlruns/867077133509953593/
+wheelhouse
+*.ps1
+runs/
